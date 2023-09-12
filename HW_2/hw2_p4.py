@@ -32,7 +32,7 @@ class Obstacle:
 def compute_index(
     min_x: int, min_y: int, max_x: int, max_y: int, gs: float, curr_x: int, curr_y: int
 ) -> int:
-    index = int(((max_x / gs) + 1) * (curr_y / gs) * (curr_x / gs))  # row len * y * x
+    index = int(((max_x / gs) + 1) * (curr_y / gs) + (curr_x / gs))  # row len * y + x
 
     return index
 
@@ -72,13 +72,13 @@ def is_not_valid(
             return True
 
         # Check if outside boundary
-        if x_min > x_curr:
+        if x_min >= x_curr:
             return True
-        if x_max < x_curr:
+        if x_max <= x_curr:
             return True
-        if y_min > y_curr:
+        if y_min >= y_curr:
             return True
-        if y_max < y_curr:
+        if y_max <= y_curr:
             return True
 
     return False
@@ -102,9 +102,12 @@ def add_to_unvisited(
         filtered_moves.append(move)
 
     for move in filtered_moves:
-        new_index = compute_index(min_x, max_x, min_y, max_y, gs, move[0], move[1])
+        new_index = compute_index(min_x, min_y, max_x, max_y, gs, move[0], move[1])
         # cost = parent cost + next distance
         new_cost = current_node.cost + m.dist(move, [current_node.x, current_node.y])
+
+        if (move[0], move[1]) == (goal_x, goal_y):
+            pass
 
         if new_index in unvisited_nodes:
             if new_cost < unvisited_nodes[new_index].cost:
@@ -121,8 +124,8 @@ def add_to_unvisited(
 
 
 # initialize some params
-start_x = 0
-start_y = 0
+start_x = 0.5
+start_y = 2
 min_x = 0
 max_x = 10
 min_y = 0
@@ -144,7 +147,7 @@ obstacle_positions = [
 ]
 obstacle_list: list[Obstacle] = []  # store obstacle classes
 obstacle_radius = 0.25
-robot_radius = 0.0
+robot_radius = 0.5
 
 for obs_pos in obstacle_positions:
     # store obstacle info in obstacle list
@@ -160,13 +163,14 @@ visited_nodes: dict[int, Node] = {}
 current_node = Node(start_x, start_y, 0, int(-1))
 
 # initialize current_index using compute_index()
-current_index = compute_index(min_x, max_x, min_y, max_y, gs, start_x, start_y)
+current_index = compute_index(min_x, min_y, max_x, max_y, gs, start_x, start_y)
 
 # put current node in dictionary - use current_index as the key
 unvisited_nodes[current_index] = current_node
 
 # set current index to what the minimum in unvisted
-while [current_node.x, current_node.y] != [goal_x, goal_y]:
+# while [current_node.x, current_node.y] != [goal_x, goal_y]:
+while unvisited_nodes:
     current_index = min(unvisited_nodes, key=lambda x: unvisited_nodes[x].cost)
     current_node = unvisited_nodes[current_index]
     visited_nodes[current_index] = current_node
@@ -177,23 +181,25 @@ while [current_node.x, current_node.y] != [goal_x, goal_y]:
         unvisited_nodes, current_node, robot_radius, obstacle_list
     )
 
-    if [current_node.x, current_node.y] == [goal_x, goal_y]:
-        print("The search is over")
+print("The search is over")
 
-        wp_node = current_node
-        wp_list = []
-        wp_list.append([wp_node.x, wp_node.y])
+goal_node_index = compute_index(min_x, min_y, max_x, max_y, gs, goal_x, goal_y)
+wp_node = visited_nodes[goal_node_index]
+wp_list = []
+wp_list.append([wp_node.x, wp_node.y])
 
-        while wp_node.parent_index != -1:
-            next_index = wp_node.parent_index
-            wp_node = visited_nodes[next_index]
-            wp_list.append([wp_node.x, wp_node.y])
-        break
+while wp_node.parent_index != -1:
+    next_index = wp_node.parent_index
+    wp_node = visited_nodes[next_index]
+    wp_list.append([wp_node.x, wp_node.y])
 
 # plot things
 plt.figure(figsize=(7, 7))
 plt.xlim(min_x, max_x)
 plt.ylim(min_y, max_y)
+
+plt.plot(start_x, start_y, "go")
+plt.plot(goal_x, goal_y, "ro")
 
 # plot obstacles
 for obstacle in obstacle_list:
